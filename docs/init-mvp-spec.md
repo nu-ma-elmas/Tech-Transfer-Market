@@ -16,7 +16,7 @@ runtime_validation: zod
 required_implementation_skills:
   - frontend-patterns
   - coding-standards
-selected_profile: daily-local-app
+selected_profile: local-web-app
 deployment_target: vercel
 primary_device: iPhone Safari
 mvp_target: 1-day playable MVP
@@ -26,8 +26,6 @@ absolute_deadline: 2026-08-24T15:49:00+09:00
 ```
 
 `status` が `CONFIRMED` でない場合はImplementationへ進まない。
-
-本ProjectではHuman Decisionにより、`daily-local-app` ProfileのFrontend Framework、Deploy Target、画面数に関する制約だけを上書きし、Next.js App Router、Vercel、および既存Game Flowに必要な7種類の主要画面を採用する。Profileのその他の制約およびMandatory Gateは維持する。Deadlineは仕様修正時刻へリセットしない。
 
 ---
 
@@ -258,7 +256,7 @@ RESET → COMPANY_SETUP
 
 ## 2.7 ナビゲーション
 
-本アプリでは既存Game Flowを成立させるため、主要画面をCompany Setup、Project Select、Club / Team、Transfer Market、Development、Project Result、Season Completeの7種類とする。Engineer DetailとProject DetailなどのModalは独立した主要画面として数えない。`daily-local-app` Profileの「1〜数画面」という制約は画面数に限って例外とし、追加機能、追加Backend、追加Architecture、追加Workflowを許可しない。既に確定した3 Major Features分類、2案件1Season、最大3人Team、MVP OUT、その他の軽量化制約は維持する。
+本アプリでは既存Game Flowを成立させるため、主要画面をCompany Setup、Project Select、Club / Team、Transfer Market、Development、Project Result、Season Completeの7種類とする。Engineer DetailとProject DetailなどのModalは独立した主要画面として数えない。追加機能、追加Backend、追加Architecture、追加Workflowを許可しない。既に確定した3 Major Features分類、2案件1Season、最大3人Team、MVP OUT、その他の軽量化制約は維持する。
 
 通常の計画フェーズでは画面下部に固定Bottom Navigationを表示する。
 
@@ -912,6 +910,68 @@ type ProjectRun = {
 };
 ```
 
+### 2.16.5 GameState Runtime Validation
+
+localStorageから復元するDataは、`GameStateSchema`で全FieldをRuntime Validationする。`GameStateSchema`と内包する`ProjectRunSchema`はstrict objectとし、未知Fieldを許可しない。全Fieldは必須であり、Optional Fieldは設けない。`companyName`と`selectedProjectId`だけは、型定義どおり`null`を許可する。
+
+Field単位のSchema制約は次で固定する。
+
+#### GameState
+
+| Field | Schema制約 |
+|---|---|
+| `version` | literal `1` |
+| `companyName` | `null`、またはtrim済み1〜30文字のstring |
+| `companyCash` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `annualSalaryBudget` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `phase` | `GamePhase`に列挙した11値のenum |
+| `selectedProjectId` | `null`、またはProject Seedに実在するID |
+| `completedProjectIds` | Project Seedに実在するIDの配列。0〜2件、重複不可 |
+| `teamEngineerIds` | Engineer Seedに実在するIDの配列。0〜3件、重複不可 |
+| `releasedEngineerIds` | Engineer Seedに実在するIDの配列。0〜15件、重複不可 |
+| `retentionDecisions` | Engineer Seedに実在するIDだけをKeyとし、Valueを`retain \| release` enumとするRecord。0〜15件 |
+| `projectRuns` | `ProjectRunSchema`の配列。0〜2件、`projectId`重複不可 |
+
+#### ProjectRun
+
+| Field | Schema制約 |
+|---|---|
+| `projectId` | Project Seedに実在するID |
+| `teamEngineerIds` | Engineer Seedに実在するIDの配列。1〜3件、重複不可 |
+| `salaryBudgetAtStart` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `teamCostAtStart` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `randomSeed` | 0〜4294967295の32-bit unsigned integer |
+| `projectScore` | 0〜100のfinite number |
+| `rating` | `S+ \| S \| A \| B \| C \| D` enum |
+| `success` | boolean |
+| `deadlineScore` | 0〜100のfinite number |
+| `qualityScore` | 0〜100のfinite number |
+| `stabilityScore` | 0〜100のfinite number |
+| `teamTechMatch` | 0〜100のfinite number |
+| `actualReward` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `salaryBudgetGrowth` | 0〜500の安全な整数 |
+| `engineerPerformances` | 当該Runの`teamEngineerIds`と同じIDだけをKeyとし、各Valueを0〜100のfinite numberとするRecord |
+
+Field Validation後、`superRefine`相当のGameState状態整合性Validationを行う。共通制約として、TeamとReleasedのIDは重複不可、各Runの`teamCostAtStart`は`salaryBudgetAtStart`以下、Runの`rating`と`success`は保存済み`projectScore`に対する§2.24の判定と一致しなければならない。`completedProjectIds`に含まれる各Projectには対応する`ProjectRun`が必ず存在する。
+
+Phase別の最低成立条件は次で固定する。
+
+| Phase | 必須状態 |
+|---|---|
+| `COMPANY_SETUP` | `companyName`が`null`で、Company未確定状態として成立する |
+| `PROJECT_1_SELECT` | `companyName`が確定済み |
+| `TEAM_1_BUILD` | Company NameとProject 1が確定し、`selectedProjectId`がProject 1を示す |
+| `DEVELOPMENT_1` | Project 1選択済み、Teamが1人以上、Project 1の`ProjectRun`と32-bit unsigned `randomSeed`が存在する |
+| `RESULT_1` | Project 1のRunが存在し、そのProject IDが`completedProjectIds`に含まれてResult確定済み |
+| `PROJECT_2_SELECT` | Project 1 Resultが確定済み |
+| `RETENTION_DECISION` | Project 1 Resultが確定済みで、Project 1とは異なるProject 2が`selectedProjectId`として選択済み |
+| `TEAM_2_BUILD` | Project 2選択済み。Project 1 Runに参加した全EngineerのRetention Decisionが存在し、`retain`はTeamに残り、`release`はReleasedに含まれる |
+| `DEVELOPMENT_2` | Project 2選択済み、Retention Decision完了済み、Teamが1人以上、Project 2の`ProjectRun`と32-bit unsigned `randomSeed`が存在する |
+| `RESULT_2` | Project 1とProject 2のRunが存在し、両Project IDが`completedProjectIds`に含まれてProject 2 Result確定済み |
+| `SEASON_COMPLETE` | Project 1とProject 2の異なる2件のRunが存在し、両Project IDが`completedProjectIds`に含まれて両Result確定済み |
+
+Project 2にProject 1と同じIDを使用したState、完了済みProjectが再選択されたState、上記Phase条件と保持Dataが矛盾するStateはinvalidとする。Field単位のPartial Repairは行わない。Schemaまたは状態整合性Validationのいずれかに失敗した場合は§2.40のCorrupt Data Recoveryへ流し、不正DataをDomainへ渡さない。
+
 ---
 
 ## 2.17 OVR計算
@@ -1148,13 +1208,47 @@ roleCoverage = clamp(
 
 ### 2.24.3 Random
 
-Development開始確定時に1回だけ`randomSeed`を生成してProjectRunへ保存する。
+Development開始確定時に1回だけ、Browserの`crypto.getRandomValues(new Uint32Array(1))`で32-bit unsigned integerの`randomSeed`を生成してProjectRunへ保存する。
 
-このSeedから `-10〜+10` の整数 `randomAdjustment` を決定する。
+```text
+Seed Range: 0〜4294967295
+```
+
+Seedから疑似乱数Sequenceへの決定的変換はMulberry32に固定する。32-bit演算はunsignedとして扱い、次のアルゴリズムと同値の実装を使用する。
+
+```ts
+function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+```
+
+同一Seedからは常に同一Sequenceを生成する。SequenceはProject Runごとに必ず次の順序で4回消費する。
+
+1. Project `randomAdjustment`。
+2. Team Slot 1の`individualRandom`。
+3. Team Slot 2の`individualRandom`。
+4. Team Slot 3の`individualRandom`。
+
+Team SlotはProject開始時に保存した`teamEngineerIds`の配列順とする。Team人数が3人未満でも4回の消費順序を維持し、空Slotに対応する値は使用せず破棄する。Engineer IDやObject列挙順でSequence順序を変更しない。
+
+Mulberry32の戻り値を`randomValue`として、整数への変換は次で固定する。
+
+```text
+randomAdjustment = floor(randomValue * 21) - 10  // -10〜+10
+individualRandom = floor(randomValue * 11) - 5   // -5〜+5
+```
 
 Reloadしても同一ProjectRunでは同じ値を使用する。
 
-Project結果確定後にRandomを再生成しない。
+Project Run Seedおよび確定Resultを保存し、Reload時またはProject結果確定後にRandomを再生成・再抽選しない。
 
 ### 2.24.4 Final Project Score
 
@@ -1238,7 +1332,7 @@ stabilityScore = clamp(
 
 ## 2.26 Engineer Performance
 
-Project開始時Random SeedからEngineer IDごとに決定的な`individualRandom`（-5〜+5）を導出する。
+Project開始時Random Seedから§2.24.3のTeam Slot順で決定的な`individualRandom`（-5〜+5）を導出し、各SlotのEngineerへ適用する。
 
 ```text
 roleNeedFactor = project.requiredStrength[engineer.role]
@@ -1900,8 +1994,6 @@ PostgreSQL
 - Engineer / Project / CompetitorのSeed Dataは起動時またはModule初期化時にZod Schemaで検証し、仕様不整合を早期検出する。
 - localStorageは`JSON.parse`後に`GameStateSchema.safeParse`相当で検証し、不正SchemaをDomainへ渡さない。
 - ZodはValidation境界に使用し、Game Result等の純粋な計算ロジックをSchemaへ押し込まない。
-- Template / selected Profileの既定FrontendがViteであっても、本アプリ固有要件であるNext.jsを優先し、Delivery Gateやレビュー契約を維持したままApp scaffoldをNext.jsへ置き換える。Viteを製品Frontendとして残さない。
-- このHuman DecisionによるProfile上書きはFrontend Framework、Deploy Target、画面数だけに限定する。`daily-local-app` Profileのその他の制約とMandatory Gateは維持する。
 - MVPにDjangoを追加しない。
 - MVPにPostgreSQLを追加しない。
 - API Routeを製品機能のために追加しない。
@@ -2278,7 +2370,27 @@ E2Eのためだけにゲームルールを弱めない。
 
 ## 2.43 Production Smoke
 
-Vercel Production URLで最低限次を検証する。
+Playwright MCPを第一選択とし、実際のVercel Production URL上で代表的な1 Seasonを最後まで完走する。次のFlowをすべて実際のブラウザ操作で確認する。
+
+1. Company Setup。
+2. Project 1 Select。
+3. Engineer Hire / Team Build。
+4. Development。
+5. Project 1 Result。
+6. Reload。
+7. GameStateが保持され、Project 1 Result後の状態を復元できることを確認する。
+8. Project 2 Select。
+9. Retention Decision。
+10. 必要に応じてRelease / Hire。
+11. Team Build。
+12. Development。
+13. Project 2 Result。
+14. Season Complete。
+15. 自社を含む10社League Rankingを確認する。
+16. Reset。
+17. Company Setupへ戻ることを確認する。
+
+上記Flowに加えて最低限次を検証する。
 
 - HTTP到達可能。
 - HTML / JS / CSS assetが正常にLoadする。
@@ -2296,7 +2408,7 @@ Vercel Production URLで最低限次を検証する。
 - Engineer Detail Modalを開閉できる。
 - Bottom NavigationのMarket中央配置とTab操作が成立する。
 
-可能ならProduction Smokeで1案件完了まで実行する。Production上で2案件全E2Eが安定して実行可能なら実行してよいが、Production Smoke自体を過度に長くしてDeliveryを不安定化させない。
+HTTP Status、Asset Load、初期画面の表示だけではPASSにしない。全Engineer、全Project、全Filter / Sort Combinationの網羅はProduction Smokeでは要求せず、Test Gateの責務とする。
 
 ---
 
