@@ -20,9 +20,14 @@ selected_profile: daily-local-app
 deployment_target: vercel
 primary_device: iPhone Safari
 mvp_target: 1-day playable MVP
+delivery_timezone: Asia/Tokyo
+delivery_start: 2026-08-23T15:49:00+09:00
+absolute_deadline: 2026-08-24T15:49:00+09:00
 ```
 
 `status` が `CONFIRMED` でない場合はImplementationへ進まない。
+
+本ProjectではHuman Decisionにより、`daily-local-app` ProfileのFrontend FrameworkとDeploy Targetに関する制約だけを上書きし、Next.js App RouterとVercelを採用する。Profileのその他の制約およびMandatory Gateは維持する。Deadlineは仕様修正時刻へリセットしない。
 
 ---
 
@@ -45,6 +50,14 @@ mvp_target: 1-day playable MVP
 ---
 
 ## 2.2 プロダクトゴール
+
+MVPの主要機能は次の3つと定義する。
+
+1. **Project / Season Progression**: Company Setup、Project選択、2案件で1Season、Project 2選択後のRetention Decision、Season Reset。
+2. **Transfer Market / Team Management**: Engineer Market、Filter / Sort、Engineer Detail、最大3人のTeam編成、Hire / Retain / Release、Salary Budget管理、Project適合表示。
+3. **Development / Evaluation**: Development進行、Project Score計算、Result、Individual Performance、Reward、Salary Budget Growth、10社League Ranking、CEO Rating、BEST ENGINEER。
+
+各画面、Modal、Animation、Sticky Header、Bottom Navigation、市場評価、計算処理などは上記3主要機能を成立させるSub-featureまたはPresentation要件であり、独立したMajor Featureとして数えない。既存のゲームループとAcceptance Criteriaは削除しない。
 
 MVPで利用者が達成できることは次の通り。
 
@@ -1452,7 +1465,7 @@ name: 地域ECリニューアル
 division: 5
 difficulty: 1
 baseReward: 1000
-requirements:
+demands:
   deadline: 4
   quality: 2
   technicalDifficulty: 2
@@ -1482,7 +1495,7 @@ name: B2B SaaS MVP
 division: 4
 difficulty: 2
 baseReward: 1400
-requirements:
+demands:
   deadline: 5
   quality: 3
   technicalDifficulty: 3
@@ -1513,7 +1526,7 @@ name: 会員制マーケットプレイス刷新
 division: 3
 difficulty: 3
 baseReward: 1800
-requirements:
+demands:
   deadline: 4
   quality: 4
   technicalDifficulty: 4
@@ -1545,7 +1558,7 @@ name: リアルタイム業務基盤
 division: 2
 difficulty: 4
 baseReward: 2400
-requirements:
+demands:
   deadline: 4
   quality: 5
   technicalDifficulty: 5
@@ -1578,7 +1591,7 @@ name: 高可用性FinTech基盤
 division: 1
 difficulty: 5
 baseReward: 3000
-requirements:
+demands:
   deadline: 5
   quality: 5
   technicalDifficulty: 5
@@ -1878,6 +1891,7 @@ PostgreSQL
 - localStorageは`JSON.parse`後に`GameStateSchema.safeParse`相当で検証し、不正SchemaをDomainへ渡さない。
 - ZodはValidation境界に使用し、Game Result等の純粋な計算ロジックをSchemaへ押し込まない。
 - Template / selected Profileの既定FrontendがViteであっても、本アプリ固有要件であるNext.jsを優先し、Delivery Gateやレビュー契約を維持したままApp scaffoldをNext.jsへ置き換える。Viteを製品Frontendとして残さない。
+- このHuman DecisionによるProfile上書きはFrontend FrameworkとDeploy Targetだけに限定する。`daily-local-app` Profileのその他の制約とMandatory Gateは維持する。
 - MVPにDjangoを追加しない。
 - MVPにPostgreSQLを追加しない。
 - API Routeを製品機能のために追加しない。
@@ -2058,15 +2072,28 @@ tech-transfer-market:v1
 ### 復元
 
 - 起動時にlocalStorageを読む。
+- `localStorage.getItem`が例外を送出した場合はCrashせず、安全な初期GameStateで起動する。
+- Readに失敗した場合はPersistenceが利用できないことを非Blockingで利用者へ示す。
 - `JSON.parse`後にZodの`GameStateSchema.safeParse`相当でRuntime Validationする。
 - 正常なv1 stateなら復元する。
 - JSON Parse失敗またはZod Schema不整合時はCrashしない。
 - 不正データを破壊的に上書きせず、初期状態へ安全に戻す。
 - Consoleへ機密情報は出さない。本アプリにはSecret自体を保存しない。
 
+### 保存
+
+- `localStorage.setItem`が例外を送出した場合はCrashしない。
+- Writeに失敗しても現在のSessionではMemory上のGameStateで操作を継続する。
+- 保存できていないこと、およびReloadで変更が失われる可能性を非Blockingで利用者へ示す。
+- 保存成功を偽装しない。
+
 ### Reset
 
 `最初からやり直す`でKeyを削除し、Company Setupへ戻る。
+
+- `localStorage.removeItem`が例外を送出した場合はCrashせず、現在のSessionのMemory上では初期GameStateへ戻す。
+- Keyを削除できなかったこと、およびReload時に以前の保存状態が復元される可能性を非Blockingで利用者へ示す。
+- 削除成功を偽装しない。
 
 Resetは確認を出す。
 
