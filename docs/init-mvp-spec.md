@@ -938,8 +938,8 @@ Field単位のSchema制約は次で固定する。
 |---|---|
 | `projectId` | Project Seedに実在するID |
 | `teamEngineerIds` | Engineer Seedに実在するIDの配列。1〜3件、重複不可 |
-| `salaryBudgetAtStart` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
-| `teamCostAtStart` | 0〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `salaryBudgetAtStart` | 1〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
+| `teamCostAtStart` | 1〜`Number.MAX_SAFE_INTEGER`の安全な整数 |
 | `randomSeed` | 0〜4294967295の32-bit unsigned integer |
 | `projectScore` | 0〜100のfinite number |
 | `rating` | `S+ \| S \| A \| B \| C \| D` enum |
@@ -952,7 +952,7 @@ Field単位のSchema制約は次で固定する。
 | `salaryBudgetGrowth` | 0〜500の安全な整数 |
 | `engineerPerformances` | 当該Runの`teamEngineerIds`と同じIDだけをKeyとし、各Valueを0〜100のfinite numberとするRecord |
 
-Field Validation後、`superRefine`相当のGameState状態整合性Validationを行う。共通制約として、TeamとReleasedのIDは重複不可、各Runの`teamCostAtStart`は`salaryBudgetAtStart`以下、Runの`rating`と`success`は保存済み`projectScore`に対する§2.24の判定と一致しなければならない。`completedProjectIds`に含まれる各Projectには対応する`ProjectRun`が必ず存在する。
+Field Validation後、`superRefine`相当のGameState状態整合性Validationを行う。共通制約として、TeamとReleasedのIDは重複不可、各Runの`salaryBudgetAtStart`と`teamCostAtStart`は正の安全な整数であり、`teamCostAtStart`は`salaryBudgetAtStart`以下、Runの`rating`と`success`は保存済み`projectScore`に対する§2.24の判定と一致しなければならない。`completedProjectIds`に含まれる各Projectには対応する`ProjectRun`が必ず存在する。これらのProjectRun Budget / Cost Invariantに違反するlocalStorage復元Dataはinvalidとし、§2.40のCorrupt Data Recoveryへ流す。
 
 Phase別の最低成立条件は次で固定する。
 
@@ -1272,18 +1272,20 @@ projectScore >= 60 → SUCCESS
 projectScore < 60  → FAILED
 ```
 
+SUCCESS判定前に`projectScore`を整数へ丸めない。
+
 ### 2.24.6 Rating
 
 ```text
-95〜100 → S+
-88〜94  → S
-80〜87  → A
-70〜79  → B
-60〜69  → C
-0〜59   → D
+projectScore >= 95                      → S+
+projectScore >= 88 && projectScore < 95 → S
+projectScore >= 80 && projectScore < 88 → A
+projectScore >= 70 && projectScore < 80 → B
+projectScore >= 60 && projectScore < 70 → C
+projectScore < 60                       → D
 ```
 
-境界は丸め前Project Scoreに適用し、表示時のみ整数へ丸める。
+Rating判定前に`projectScore`を整数へ丸めない。実装上は上から順に比較してよい。Reward Multiplierおよびその他のRating依存処理は、このRating結果を使用する。表示時のみ整数へ丸める。
 
 ---
 
@@ -1459,6 +1461,8 @@ projectCostEfficiency = clamp(
 )
 ```
 
+有効なProjectRunでは`salaryBudgetAtStart`と`teamCostAtStart`が正の整数かつ`teamCostAtStart <= salaryBudgetAtStart`であるため、`salaryUtilization`は常にfinite numberであり、`0 < salaryUtilization <= 1`を満たす。`0 / 0`へのFallback値や特別なCost Efficiency補正式は追加しない。
+
 2案件平均を`costEfficiencyScore`とする。
 
 ### 2.29.4 Average Tech Match
@@ -1485,15 +1489,15 @@ leaguePoints = round(companyIndex * 100)
 
 ### 2.29.7 CEO RATING
 
-`companyIndex`へProject Ratingと同じ閾値を適用する。
+`companyIndex`へProject Ratingと同じ連続した閾値を適用する。判定前に`companyIndex`を整数へ丸めない。
 
 ```text
-95〜100 → S+
-88〜94  → S
-80〜87  → A
-70〜79  → B
-60〜69  → C
-0〜59   → D
+companyIndex >= 95                       → S+
+companyIndex >= 88 && companyIndex < 95  → S
+companyIndex >= 80 && companyIndex < 88  → A
+companyIndex >= 70 && companyIndex < 80  → B
+companyIndex >= 60 && companyIndex < 70  → C
+companyIndex < 60                        → D
 ```
 
 ---
