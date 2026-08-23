@@ -1,27 +1,30 @@
 - Verdict: APPROVED
 - Blockers: 0
-- Follow-ups: 2
+- Follow-ups: 1
 - Ready to merge: YES
 
 ## Evidence
 
-- `docs/init-mvp-spec.md` §1で選択された `local-web-app` Profile、Next.js + React + TypeScript、Zod、localStorage、Vercelという構成が、`profiles/local-web-app/PROFILE.md`、`package.json`、`src/app/`、`src/shared/schemas/`、`src/adapters/repositories/`、`deploy-templates/vercel.json.template`で一貫している。
-- `README.md`は本Appを「Tech Transfer Market」として説明し、初回clone後の `npm ci`、開発起動、Production相当の起動、品質Gateを案内している。Template製品説明や別App名は残っていない。
-- `package.json`にはNext.js向けの `dev`、`build`、`start`、`lint`、`test` Scriptがあり、Runtime DependencyはReact、Next.js、Zodに限定されている。Server API、Database、認証、AI Dependencyはない。
-- `src/features/game/GameApp.tsx`にCompany Setup、Projects、Market、Club、Development、Result、Season Completeの主要フローが存在する。2案件目のRetention Decision、3人までのTeam、予算制約、結果表示、Season Resetも実装されている。
-- `src/data/engineers.ts`と`src/data/projects.ts`にはEngineer 15人、Project 5件、Competitor 9社が定義され、`src/shared/schemas/seed.schema.ts`でRuntime Validationされる。
-- `src/shared/schemas/game-state.schema.ts`はstrictなGameState / ProjectRun Validation、Schema Version、Seed ID検証、Phase整合性、Budget / Cost、Result、Retention整合性を検査する。
-- `src/adapters/repositories/local-storage-game-state-repository.ts`は正常Dataの復元、未知・破損Dataの隔離と初期復旧、読み書き失敗の通知、保存成功を偽装しない挙動を備える。
-- `src/app/layout.tsx`と`src/app/globals.css`はdevice-width、safe area、モバイル優先Layout、横方向overflow抑制、ModalのViewport内scroll、Bottom Navigation、`prefers-reduced-motion`を扱う。
-- `deploy-templates/vercel.json.template`はFrameworkを `nextjs`、Build Commandを `npm run build` とし、選択されたVercel公開先に適合する。
-- 独立確認として `npm run lint` は成功し、`npm run test` は5 Files、91 Testsすべて成功した。Storage正常・破損・Schema不一致・読み書き失敗、Keyboard操作、320 / 375 / 390 / 768px、連続Season Flow、Development lifecycle、Result段階Revealを含み、skipはない。
+- `docs/init-mvp-spec.md` §1 is `CONFIRMED` and selects the `local-web-app` profile, Next.js, React, TypeScript, Zod, localStorage, and Vercel.
+- `package.json` provides the documented Next.js lifecycle through `dev`, `build`, `start`, `lint`, and `test` scripts, with React, Next.js, TypeScript, Zod, ESLint, Vitest, and Testing Library dependencies.
+- `README.md` describes Tech Transfer Market rather than the template and gives first-clone installation, local development, production-equivalent startup, and quality-gate commands.
+- `src/app/`, `src/features/game/GameApp.tsx`, `src/usecases/`, `src/domain/`, `src/data/`, `src/repositories/`, and `src/adapters/` contain a cohesive implementation of the specified two-project season, transfer market, team management, development, result, ranking, reset, and browser persistence flows.
+- `src/data/engineers.ts` and `src/data/projects.ts` provide the required 15 Engineer Seeds, 5 Project Seeds, and 9 Competitor Seeds with runtime validation.
+- `src/shared/schemas/game-state.schema.ts` uses strict Zod schemas and state-level validation for localStorage data, including version, seed IDs, phase invariants, run invariants, and corrupt-state rejection.
+- `src/adapters/repositories/local-storage-game-state-repository.ts` defines a versioned localStorage key, validates reads, preserves corrupt data in a backup key when possible, safely recovers to initial state, and exposes read, write, and reset failures to the UI.
+- `src/app/page.test.tsx`, `src/usecases/game-actions.test.ts`, `src/domain/calculations.test.ts`, `src/shared/schemas/game-state.schema.test.ts`, and `src/adapters/repositories/local-storage-game-state-repository.test.ts` cover the representative season flow, reload restoration, mobile widths, keyboard/modal behavior, result reveal order, reduced motion, calculations, schema rejection, corrupt recovery, and storage failures.
+- `src/app/globals.css` defines the mobile-first layout, safe-area-aware navigation, reduced-motion behavior, and a compact Market header using `position: sticky` below the persistent top bar.
+- `src/app/favicon.ico` is a repository-local 32×32 ICO asset in the standard Next.js App Router metadata location.
+- `deploy-templates/vercel.json.template` declares the Next.js framework and `npm run build`, matching the selected Vercel deployment target.
+- No application dependency on authentication, a server API, a server database, AI, external image services, or secret credentials was found.
+- No repository-local absolute path was found in the inspected application, configuration, README, profile, or deployment files.
 
 ## BLOCKER
 
-なし。
+None.
 
 ## FOLLOW_UP
 
-1. `.github/workflow-templates/deploy-pages.yml.template`はGitHub Pages向けの継承Templateで、現在のNext.js / Vercel Profileでは使用されない。`.github/workflows/`配下の有効Workflowではないため公開を壊さないが、`dist`をUploadする内容は現構成と一致しない。Template差し戻し候補として、将来の利用者が誤選択しないよう整理を検討する。
-
-2. `README.md`はVercelへ公開する旨を示すが、Vercel ImportまたはCLIによる具体的なDeploy手順は記載していない。Next.jsの標準Vercel検出と `deploy-templates/vercel.json.template`により公開可能であるためBLOCKERではないが、初回clone利用者向けの案内改善候補である。
+1. Template差し戻し候補: `.github/workflow-templates/deploy-pages.yml.template` remains a GitHub Pages workflow that uploads `dist`, while this initialized repository is a Next.js application whose selected deployment target is Vercel and whose build does not produce that Pages artifact.
+   - File Evidence: `.github/workflow-templates/deploy-pages.yml.template` configures GitHub Pages and `actions/upload-pages-artifact` with `path: dist`; `package.json` uses `next build`; `deploy-templates/vercel.json.template` correctly targets Next.js on Vercel.
+   - Impact: This unused template does not block the selected Vercel publication path or first-clone local use, but it is misleading inherited template material and would fail if someone mistakenly enabled it for this application.

@@ -18,7 +18,7 @@ body {
   min-height: 100%;
   background: var(--bg);
   color: var(--text);
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 button,
 input,

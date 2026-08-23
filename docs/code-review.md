@@ -1,32 +1,18 @@
 - Verdict: APPROVED
 - Blockers: 0
-- Follow-ups: 1
+- Follow-ups: 0
 - Ready to merge: YES
 
 ## Evidence
 
-- 要求入力: `docs/init-mvp-spec.md`
-- 選択Profile: `profiles/local-web-app/PROFILE.md`
-- 変更Evidence: repository rootで取得された `git diff --no-ext-diff --binary` の省略なしDiff全文
-- Test Evidence:
-  - `src/app/page.test.tsx`
-  - `src/domain/calculations.test.ts`
-  - `src/usecases/game-actions.test.ts`
-  - `src/shared/schemas/game-state.schema.test.ts`
-  - `src/adapters/repositories/local-storage-game-state-repository.test.ts`
-- Gate Evidence:
-  - `npm ci`: PASS（239 packages installed、240 audited、0 vulnerabilities）
-  - `npm run lint`: PASS（exit 0）
-  - `npm run test`: PASS（exit 0、5 files、91 tests、skip 0）
-  - `npm run build`: PASS（exit 0、Next.js 16.3.2、TypeScript PASS、static `/`・`/_not-found`）
-  - `git diff --check`: PASS（exit 0）
-  - `npm audit --audit-level=high`: PASS（0 vulnerabilities）
-- `src/features/game/GameApp.tsx` のResultは、初期表示のPROJECT COMPLETE / Ratingから、200ms間隔でReward、Deadline / Quality / Stability、MVP ENGINEER、Individual Performanceへ進む段階Revealを実装している。各段階は前段階の後に条件付きでDOMへ追加され、指定順を維持している。
-- `src/app/globals.css` の `.result-reveal` は220msのtransition相当Animationを使用し、既存Motion方針の150〜300ms範囲に収まる。全Revealは約800msで完了し、数秒間操作を拘束しない。
-- `prefers-reduced-motion: reduce` ではResultの全段階を待機なしで静的表示し、CSS Animationも無効化される。
-- `src/app/page.test.tsx` は通常Motionで各200ms境界に後続段階が未表示であることと、指定順に表示されることを検証している。reduced motionでは全段階の即時表示とDOM順を検証している。
-- ResultのRating、Reward、各Score、MVP、Individual Performanceの計算処理には、今回の段階Revealに伴う変更は認められない。
-- 仕様外の新機能、Architecture変更、不要な新規Library、Testの削除・skip・弱体化、実Credential・秘密情報・ローカル絶対PathのCommit対象への混入は、提供Evidenceから認められない。
+- `docs/init-mvp-spec.md` §2.11.2、§2.36.7、Production Smoke要件、Acceptance Criteria 66と修正内容を照合した。
+- 省略なしの `git diff --no-ext-diff --binary` を確認した。Application変更は `body` の横方向overflowを `hidden` から `clip` へ変更するSticky成立のための最小修正と、App Router配下のローカル `src/app/favicon.ico` 追加に限定されている。
+- Compact Sticky Headerの既存DOM、表示項目、レイアウト、計算処理は変更されておらず、Scope外機能、UI再設計、Architecture変更、新規Dependency、投機的抽象化はない。
+- 375pxの実ブラウザ証跡では、Marketの `scrollY = 700` 時にCompact Sticky Headerの実測topが78pxとなり、固定Header直下のViewport上部に維持されている。document scrollWidthとviewport幅はいずれも375pxで、横overflowもない。
+- `/favicon.ico` はローカルAssetからHTTP 200、`image/x-icon`、4414 bytesで取得でき、Next.js buildでもfavicon metadata outputとして認識されている。
+- `src/app/page.test.tsx` の既存Mobile幅Testは320 / 375 / 390 / 768pxでMarket、Compact Sticky Header、主要操作、横overflowを継続検証している。既存の主要フロー、保存・Reload、Result、Season、Resetに関するTestも削除、skip、緩和されていない。
+- Gate結果は `npm ci`、lint、5 files / 91 tests、Next.js build、`git diff --check`、`npm audit --audit-level=high` のすべてがPASS。脆弱性は0件。
+- Diffに実Credential、秘密情報、ローカル絶対Path、外部Asset、外部Service追加は認められない。選択Profile `local-web-app` に適合している。
 
 ## BLOCKER
 
@@ -34,4 +20,4 @@
 
 ## FOLLOW_UP
 
-1. `.gitignore` の変更で従来の `.env`、`.env.*`、`*.local`、`*.log` の除外規則がなくなっている。現在のDiffに実Credentialや秘密情報の混入は認められず公開をblockしないが、将来の誤Commit防止のため、Delivery完了後にRepository方針としてSecret関連の除外規則を再確認することを推奨する。
+なし。
