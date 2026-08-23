@@ -1,0 +1,7 @@
+import { GameStateSchema } from '@/shared/schemas/game-state.schema'
+import { INITIAL_STATE, type GameState } from '@/domain/types'
+export const STORAGE_KEY='tech-transfer-market:v1',BACKUP_KEY='tech-transfer-market:v1:corrupt-backup'
+export interface LoadResult{state:GameState;notice:string|null;persistenceEnabled:boolean}
+export function loadGameState(storage:Storage):LoadResult{let raw:string|null;try{raw=storage.getItem(STORAGE_KEY)}catch{return{state:{...INITIAL_STATE},notice:'保存データを読み込めません。現在の内容は再読み込みで失われる可能性があります。',persistenceEnabled:false}}if(raw===null)return{state:{...INITIAL_STATE},notice:null,persistenceEnabled:true};let parsed:unknown;try{parsed=JSON.parse(raw)}catch{parsed=null}const result=GameStateSchema.safeParse(parsed);if(result.success)return{state:result.data,notice:null,persistenceEnabled:true};try{storage.setItem(BACKUP_KEY,raw);storage.removeItem(STORAGE_KEY);return{state:{...INITIAL_STATE},notice:'保存データを読み込めなかったため、初期状態へ復旧しました。',persistenceEnabled:true}}catch{return{state:{...INITIAL_STATE},notice:'保存データを隔離できません。現在の内容は再読み込みで失われる可能性があります。',persistenceEnabled:false}}}
+export function saveGameState(storage:Storage,state:GameState){try{storage.setItem(STORAGE_KEY,JSON.stringify(state));return null}catch{return'保存できませんでした。再読み込みで変更が失われる可能性があります。'}}
+export function resetGameState(storage:Storage){try{storage.removeItem(STORAGE_KEY);return null}catch{return'保存データを削除できませんでした。再読み込み時に以前の状態が復元される可能性があります。'}}
