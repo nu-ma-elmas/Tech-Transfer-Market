@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.local
+.DS_Store
+*.log
+
+# 秘密情報。on-local-data-use-ai-app のServer Environment Variableをここへ置かない
+.env
+.env.*
+!.env.example
+
+# Deploy先のローカル状態
+.vercel/

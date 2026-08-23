@@ -1,0 +1,21 @@
+{
+  "name": "Deadline-Driven Lightweight SDD",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+  },
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude/skills,target=/home/node/.claude/skills,type=bind,readonly"
+  ],
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Vite development server", "onAutoForward": "notify" }
+  },
+  "containerEnv": {
+    "TZ": "Asia/Tokyo"
+  },
+  "postCreateCommand": "npm ci",
+  "remoteUser": "node"
+}
