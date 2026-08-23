@@ -27,7 +27,7 @@ absolute_deadline: 2026-08-24T15:49:00+09:00
 
 `status` が `CONFIRMED` でない場合はImplementationへ進まない。
 
-本ProjectではHuman Decisionにより、`daily-local-app` ProfileのFrontend FrameworkとDeploy Targetに関する制約だけを上書きし、Next.js App RouterとVercelを採用する。Profileのその他の制約およびMandatory Gateは維持する。Deadlineは仕様修正時刻へリセットしない。
+本ProjectではHuman Decisionにより、`daily-local-app` ProfileのFrontend Framework、Deploy Target、画面数に関する制約だけを上書きし、Next.js App Router、Vercel、および既存Game Flowに必要な7種類の主要画面を採用する。Profileのその他の制約およびMandatory Gateは維持する。Deadlineは仕様修正時刻へリセットしない。
 
 ---
 
@@ -258,6 +258,8 @@ RESET → COMPANY_SETUP
 
 ## 2.7 ナビゲーション
 
+本アプリでは既存Game Flowを成立させるため、主要画面をCompany Setup、Project Select、Club / Team、Transfer Market、Development、Project Result、Season Completeの7種類とする。Engineer DetailとProject DetailなどのModalは独立した主要画面として数えない。`daily-local-app` Profileの「1〜数画面」という制約は画面数に限って例外とし、追加機能、追加Backend、追加Architecture、追加Workflowを許可しない。既に確定した3 Major Features分類、2案件1Season、最大3人Team、MVP OUT、その他の軽量化制約は維持する。
+
 通常の計画フェーズでは画面下部に固定Bottom Navigationを表示する。
 
 ```text
@@ -284,6 +286,14 @@ CLUB | MARKET | PROJECTS
 - `TECH TRANSFER MARKET`
 - `Build your engineering club.`
 - Company Name入力欄
+- Company Name入力欄および開始CTA付近の小さな補足Textとして、次を表示する。Modal、同意Checkbox、Blocking Dialogにはしない。
+
+  ```text
+  ゲームデータはこの端末・ブラウザ内に保存されます。
+  ブラウザデータの削除や端末変更などにより、
+  データが失われる場合があります。
+  ```
+
 - `会社を設立する`
 
 ルール:
@@ -1891,7 +1901,7 @@ PostgreSQL
 - localStorageは`JSON.parse`後に`GameStateSchema.safeParse`相当で検証し、不正SchemaをDomainへ渡さない。
 - ZodはValidation境界に使用し、Game Result等の純粋な計算ロジックをSchemaへ押し込まない。
 - Template / selected Profileの既定FrontendがViteであっても、本アプリ固有要件であるNext.jsを優先し、Delivery Gateやレビュー契約を維持したままApp scaffoldをNext.jsへ置き換える。Viteを製品Frontendとして残さない。
-- このHuman DecisionによるProfile上書きはFrontend FrameworkとDeploy Targetだけに限定する。`daily-local-app` Profileのその他の制約とMandatory Gateは維持する。
+- このHuman DecisionによるProfile上書きはFrontend Framework、Deploy Target、画面数だけに限定する。`daily-local-app` Profileのその他の制約とMandatory Gateは維持する。
 - MVPにDjangoを追加しない。
 - MVPにPostgreSQLを追加しない。
 - API Routeを製品機能のために追加しない。
@@ -2058,6 +2068,14 @@ Key:
 tech-transfer-market:v1
 ```
 
+Corrupt Backup Key:
+
+```text
+tech-transfer-market:v1:corrupt-backup
+```
+
+Corrupt Backupは1世代だけ保持し、新しい破損値を隔離する場合は既存値を上書きしてよい。利用者がCorrupt Backupを操作または復元するための画面や管理機能は作らない。
+
 保存対象:
 
 - GameState全体。
@@ -2077,7 +2095,10 @@ tech-transfer-market:v1
 - `JSON.parse`後にZodの`GameStateSchema.safeParse`相当でRuntime Validationする。
 - 正常なv1 stateなら復元する。
 - JSON Parse失敗またはZod Schema不整合時はCrashしない。
-- 不正データを破壊的に上書きせず、初期状態へ安全に戻す。
+- Primary Keyから取得したRaw ValueがJSON Parse失敗またはZod Schema不整合の場合、そのRaw Valueを破損データとして扱い、Corrupt Backup Keyへ隔離保存することを試みる。
+- 隔離保存に成功した場合だけPrimary Keyの破損値を削除し、安全な初期GameStateをMemory上で生成して起動する。保存データを読み込めなかったため初期状態へ復旧したことを非Blockingで利用者へ示す。
+- 隔離保存が`localStorage.setItem`の例外で失敗した場合、Primary Keyの破損値を上書きも削除もせずRaw Valueを可能な限り保持する。安全な初期GameStateをMemory上で使用してSessionを継続し、Persistenceが利用できないことを非Blockingで利用者へ示す。保存成功を偽装しない。
+- 破損値を正常なGameStateとしてDomainへ渡さない。
 - Consoleへ機密情報は出さない。本アプリにはSecret自体を保存しない。
 
 ### 保存
@@ -2193,6 +2214,7 @@ Arrange / Act / Assertを基本とする。
 最低限:
 
 - 会社名を入力して設立したとき、Projectsへ遷移すること。
+- Company Setupを表示したとき、端末・Browser内保存とデータ消失可能性の補足Textが開始CTA付近に表示されること。
 - Project未選択のとき、Marketで獲得操作ができないこと。
 - Projectを選択したとき、Marketに案件要約が表示されること。
 - Engineerを獲得したとき、My Teamの空き枠へ追加され年俸枠が減ること。
@@ -2214,6 +2236,8 @@ Arrange / Act / Assertを基本とする。
 - 再読み込みしたとき、localStorageからSeason途中が復元されること。
 - localStorageのJSONが壊れているとき、Crashせず初期状態へ安全に戻ること。
 - localStorageのJSONはParseできるがGameState Schemaに不整合があるとき、Crashせず初期状態へ安全に戻ること。
+- 破損Dataの隔離保存に成功したとき、Raw ValueがCorrupt Backup Keyへ保存されPrimary Keyが削除されること。
+- 破損Dataの隔離保存に失敗したとき、Primary Keyを上書き・削除せずMemory上の初期状態でSessionを継続し、Persistence障害が通知されること。
 
 ### 2.42.3 UI / E2E Critical Flow
 
@@ -2259,6 +2283,7 @@ Vercel Production URLで最低限次を検証する。
 - HTTP到達可能。
 - HTML / JS / CSS assetが正常にLoadする。
 - 初回Company Setupが表示される。
+- Company Setupの開始CTA付近に端末・Browser内保存とデータ消失可能性の補足Textが表示される。
 - Company作成ができる。
 - Project一覧5件が表示される。
 - Marketに15人が表示される。
