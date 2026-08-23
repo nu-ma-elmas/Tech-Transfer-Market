@@ -1542,7 +1542,7 @@ Tie Breaker:
 |---|---|---|---|---:|---:|---:|---:|---:|---|---:|---|---:|---|
 | infra-01 | 渡辺 駿 | Senior Infrastructure Engineer | AWS, Terraform, Kubernetes, Docker, GitHub Actions | 90 | 84 | 94 | 82 | 89 | STAR | 5 | 900〜1,200万円 | 1,150万円 | avatar-infra-01 |
 | infra-02 | 吉田 彩 | Cloud Engineer | AWS, Docker, GitHub Actions, CloudWatch | 86 | 82 | 88 | 80 | 85 | STAR | 5 | 750〜950万円 | 800万円 | avatar-infra-02 |
-| infra-03 | 松本 光希 | Infrastructure Engineer | AWS, Terraform, Docker, GitHub Actions | 84 | 80 | 85 | 77 | 82 | PRO | 4 | 680〜900万円 | 760万円 | avatar-infra-03 |
+| infra-03 | 松本 光希 | Infrastructure Engineer | AWS, Terraform, Docker, GitHub Actions | 84 | 80 | 85 | 77 | 83 | PRO | 4 | 680〜900万円 | 760万円 | avatar-infra-03 |
 | infra-04 | 井上 七海 | Infrastructure Engineer | GCP, Kubernetes, Docker, Terraform | 80 | 76 | 82 | 75 | 79 | SOLID | 3 | 600〜800万円 | 760万円 | avatar-infra-04 |
 | infra-05 | 林 翼 | Junior Infrastructure Engineer | AWS, Linux, Docker, Nginx | 74 | 72 | 76 | 70 | 74 | ROOKIE | 2 | 480〜650万円 | 500万円 | avatar-infra-05 |
 
@@ -1741,13 +1741,32 @@ techRequirements:
 
 Season完了時に自社`leaguePoints`を加えて降順Sortし、10社順位を表示する。
 
-同点Tie Breaker:
+同一`leaguePoints`の会社は同順位とし、全10社にCompetition Ranking方式を適用する。
 
-1. 自社の場合は総獲得報酬が高い方を優先する。
-2. 次に平均Tech Match。
-3. それでも同じ場合はCompany Nameの昇順。
+```text
+rank(company) = 1 + companyよりleaguePointsが高い会社数
+```
 
-固定競合側は同点しないSeedとする。
+自社順位は`rank = 1 + 自社よりleaguePointsが高い会社数`となる。
+
+同順位の次の順位番号は同順位の会社数だけSkipする。
+
+例:
+
+```text
+9200 → 1位
+8800 → 2位
+8400 → 3位
+8400 → 3位
+8050 → 5位
+```
+
+Ranking UI内で同点会社の表示順を決める場合だけ、次を適用する。この表示順は`rank`値へ影響しない。
+
+1. 固定Competitor同士は既存Seed順。
+2. 自社と固定Competitorが同点の場合、自社を同点Competitorの後ろへ表示する。
+
+競合へProject Score、総獲得報酬、平均Tech Matchその他の追加指標を持たせず、同点順位のためのSeed Dataを追加しない。
 
 ---
 
