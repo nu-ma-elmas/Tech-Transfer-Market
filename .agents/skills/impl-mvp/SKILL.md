@@ -37,8 +37,20 @@ description: Repository内の人間が確定した要求入力1件をもとに�
 10. Review済みの実装とプロセス生成物を、履歴を書き換えずCommitする。
 11. fast-forwardだけでPushし、force pushしない。
 12. 選択Profileの既定方式でDeployする。AIのKeyはServer Environment Variableだけに置く。
-13. 実際のProduction URLを取得する。まず本番で受け入れ条件のProduction Smokeを行い、PASS後に同じ本番環境でMobile・Responsive確認を行う。両方がPASSするまで本番確認を完了しない。
+13. 実際のProduction URLを取得する。後述のブラウザ検証契約に従い、まず本番で受け入れ条件のProduction Smokeを行い、PASS後に同じ本番環境でMobile・Responsive確認を行う。両方がPASSするまで本番確認を完了しない。
 14. プロセス生成物だけに未Commit変更が残る場合は、それらをCommitしてfast-forwardでPushする。それ以外の未Review変更があれば停止する。手順14自身の進捗行は追加しない。
+
+## Productionブラウザ検証
+
+手順13のProduction SmokeとMobile・Responsive確認では、利用可能な場合はPlaywright MCPをブラウザ検証の第一選択とし、利用できない場合だけ既存のBrowser操作Toolを代替手段として使用する。Playwright MCPを利用するためだけに、対象Repositoryへ `@playwright/test`、`playwright`、`playwright.config.*`、`e2e/` その他のPlaywright Test基盤を追加しない。要求入力がRepository内のE2E Test実装を明示的に求める場合は、その要求に従う。
+
+確認内容はアプリ固有に固定せず、常に `docs/init-mvp-spec.md` の主要ユーザーフロー、Acceptance Criteria、Mobile要件、Production要件を正本として決定する。Production Smokeは取得した実際のProduction URLに対して行い、ローカルURLではPASSにしない。最低限、Production URLへのアクセス、初期画面と主要UIの描画、MVP成立性を確認できる最小の代表的な主要ユーザーフロー、主要なボタン・リンク・モーダル等の操作、致命的な描画崩れと操作を妨げるRuntime Errorの不在、本番で確認可能な主要Acceptance Criteriaを実際のブラウザ操作で確認する。仕様に複数の主要フローがある場合は、MVPの成立性を確認するために必要な最小の代表フローを選ぶ。`curl` 等はURL到達確認の補助に使用できるが、Playwright MCPまたは代替Browser操作Toolが利用可能なときにHTTP到達確認だけでProduction SmokeをPASSにしてはならず、ページが200を返すだけでもPASSにしない。
+
+Production SmokeがPASSした後、同じProduction URLをモバイルViewportで確認する。要求入力にViewportまたは対象Deviceの指定があればそれを優先し、なければ `width: 390`、`height: 844` を使用する。横方向の意図しないoverflowがないこと、主要ContentがViewport内に収まること、固定HeaderまたはSticky UIが操作を妨げないこと、Bottom Navigationがある場合に表示・操作できること、ModalがViewport外へはみ出さないこと、主要CTAをtapできること、Textが重ならないこと、Cardや一覧を操作できること、主要ユーザーフローを完走できること、scroll不能等の重大な操作障害がないことを、表示確認と実際の主要操作の両方で確認する。ScreenshotだけではPASSにしない。
+
+Playwright MCPでScreenshotを取得できる場合は、Production SmokeとMobile・Responsive確認の根拠として必要最小限を取得してよい。全画面の大量撮影、Screenshot管理System、Visual Regression基盤は追加しない。
+
+Playwright MCPの起動または接続に失敗した場合は黙ってGateを省略せず、既存のBrowser操作Toolで同等の確認が可能かを確認する。同等のブラウザ操作確認ができなければ、確認していないGateをPASSにせず、既存のBlock State規則に従って `BLOCKED` または既存Skillが定める適切な停止状態を報告する。Production SmokeまたはMobile・Responsive確認がFAILした場合も手順13を完了せず、`COMPLETE` を報告しない。
 
 ## 独立仕様Review Gate
 
